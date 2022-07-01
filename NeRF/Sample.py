@@ -11,35 +11,6 @@ def sample_rays_np(H, W, f, c2w):
     return rays_o, rays_d
 
 
-def sample_rays(H, W, f, c2w):
-    # f : focal length
-    # c2w : camera to world
-    # img
-
-    N = c2w.shape[0]
-    # 2d grid
-    x = torch.tensor(range(W), dtype=torch.float32, device=f.device) + 0.5
-    y = torch.tensor(range(H), dtype=torch.float32, device=f.device) + 0.5
-    grid = torch.cartesian_prod(x, y)
-    x = grid[:, 0]
-    y = grid[:, 1]
-    # screen to camera
-    # dirs => tensor(H*W, 3)
-    dirs = torch.stack([(x - W * 0.5) / f,
-                        -(y - H * 0.5) / f,
-                        -torch.ones_like(x)],
-                       dim=-1)
-    dirs = dirs.unsqueeze(dim=0).expand(N, W * H, 3).unsqueeze(dim=-1)
-    # camera to world
-    # ray_dirs => tensor(H, W, 3)
-    ray_dir = torch.matmul(c2w[:, None, :3, :3], dirs).squeeze()
-
-    # ray_o => tensor(3,H*W)
-    ray_o = c2w[:3, -1]
-
-    return ray_o, ray_dir
-
-
 # Hierarchical sampling (section 5.2)
 def sample_pdf(bins, weights, N_samples):
     # 归一化 w 求 pdf

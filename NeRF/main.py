@@ -15,7 +15,7 @@ n_train = 100
 #############################
 # load data
 #############################
-data = np.load('tiny_nerf_data.npz')
+data = np.load('../tiny_nerf_data.npz')
 images = data['images']
 poses = data['poses']
 focal = data['focal']
@@ -54,19 +54,33 @@ rays_rgb_npy = np.concatenate(rays_rgb_list, axis=0)
 rays = torch.tensor(np.concatenate([rays_o_npy, rays_d_npy, rays_rgb_npy], axis=1), device=device)
 
 #############################
-# train
+# training parameters
 #############################
 N = rays.shape[0]
 Batch_size = 4096
 iterations = N // Batch_size
-print(f"There are {iterations} rays batches and each batch contains {Batch_size} rays")
+print(f"There are {iterations} batches of rays and each batch contains {Batch_size} rays")
 
-N_samples = 64
+bound = (2., 6.)
+N_samples = (64, None)
+use_view = True
 epoch = 2
 psnrs = []
 e_nums = []
 
-net = NeRF(use_view_dirs=False).to(device)
+#############################
+# test data
+#############################
+test_rays_o, test_rays_d = sample_rays_np(H, W, focal, test_pose)
+test_rays_o = torch.tensor(test_rays_o, device=device)
+test_rays_d = torch.tensor(test_rays_d, device=device)
+test_rgb = torch.tensor(test_img, device=device)
+
+
+#############################
+# training
+#############################
+net = NeRF(use_view_dirs=use_view).to(device)
 optimizer = torch.optim.Adam(net.parameters(), 5e-4)
 mse = torch.nn.MSELoss()
 
@@ -82,7 +96,8 @@ for e in range(epoch):
             assert train_rays.shape == (Batch_size, 9)
 
             rays_o, rays_d, target_rgb = torch.chunk(train_rays, 3, dim=-1)
-            rgb, _, __ = render_rays(net, rays_o, rays_d, near=2., far=6., N_samples=N_samples, device=device)
+            rays_od = (rays_o, rays_d)
+            rgb, _, __ = render_rays(net, rays_od, bound=bound, N_samples=N_samples, device=device, use_view=use_view)
 
             loss = mse(rgb, target_rgb)
             optimizer.zero_grad()
@@ -92,24 +107,13 @@ for e in range(epoch):
             p_bar.set_postfix({'loss': '{0:1.5f}'.format(loss.item())})
             p_bar.update(1)
 
-    rays_o, rays_d = sample_rays_np(H, W, focal, test_pose)
-    rays_o = torch.tensor(rays_o, device=device)
-    rays_d = torch.tensor(rays_d, device=device)
+    with torch.no_grad():
+        rays_od = (test_rays_o, test_rays_d)
+        rgb, _, __ = render_rays(net, rays_od, bound=bound, N_samples=N_samples, device=device, use_view=use_view)
+        print(rgb.shape)
+        loss = mse(rgb, torch.tensor(test_img, device=device)).cpu()
+        psnr = -10. * torch.log(loss).item() / torch.log(torch.tensor([10.]))
+        print(f"PSNR={psnr.item()}")
 
-    rgb, depth, acc = render_rays(net, rays_o, rays_d, near=2., far=6., N_samples=N_samples, device=device)
-    loss = mse(rgb, torch.tensor(test_img, device=device))
-    psnr = -10. * torch.log(loss).item() / torch.log(torch.tensor([10.]))
-    print(f"PSNR={psnr.item()}")
-    psnrs.append(psnr.numpy())
-    e_nums.append(e+1)
-
-    plt.figure(figsize=(10, 4))
-    plt.subplot(121)
-    plt.imshow(rgb.cpu().detach().numpy())
-    plt.title(f'Iteration: {i + 1}')
-    plt.subplot(122)
-    plt.plot(e_nums, psnrs)
-    plt.title('PSNR')
-    plt.show()
 
 print('Done')

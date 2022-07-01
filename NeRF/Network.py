@@ -36,11 +36,7 @@ class NeRF(nn.Module):
             self.proj = nn.Linear(W, W // 2)
         self.rgb_linear = nn.Linear(W // 2, 3)
 
-    def forward(self, x):
-        if self.use_view_dirs:
-            input_pts, input_views = torch.split(x, [self.input_ch, self.input_ch_views], dim=-1)
-        else:
-            input_pts = x
+    def forward(self, input_pts, input_views=None):
         h = input_pts.clone()
         for i, _ in enumerate(self.net):
             h = F.relu(self.net[i](h))
@@ -57,23 +53,3 @@ class NeRF(nn.Module):
         rgb = torch.sigmoid(self.rgb_linear(h))
 
         return rgb, alpha
-
-
-class TinyNerf(torch.nn.Module):
-    def __init__(self, filter_size=128, num_encoding_functions=6):
-        super(TinyNerf, self).__init__()
-        # Input layer (default: 39 -> 128)
-        self.layer1 = torch.nn.Linear(3 + 3 * 2 * num_encoding_functions, filter_size)
-        # Layer 2 (default: 128 -> 128)
-        self.layer2 = torch.nn.Linear(filter_size, filter_size)
-        # Layer 3 (default: 128 -> 4)
-        self.layer3 = torch.nn.Linear(filter_size, 4)
-        # Short hand for torch.nn.functional.relu
-        self.relu = torch.nn.functional.relu
-
-    def forward(self, x):
-        x = self.relu(self.layer1(x))
-        x = self.relu(self.layer2(x))
-        x = self.layer3(x)
-        a, rgb = torch.split(x, [1, 3], dim=-1)
-        return a, rgb
