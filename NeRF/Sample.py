@@ -12,7 +12,7 @@ def sample_rays_np(H, W, f, c2w):
 
 
 # Hierarchical sampling (section 5.2)
-def sample_pdf(bins, weights, N_samples):
+def sample_pdf_point(bins, weights, N_samples):
     # 归一化 w 求 pdf
     pdf = F.normalize(weights, p=1, dim=-1)
     # 前缀和求 cdf

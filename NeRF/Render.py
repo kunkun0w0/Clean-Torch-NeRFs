@@ -1,6 +1,6 @@
 import torch
 import torch.nn.functional as F
-from Sample import uniform_sample_point
+from Sample import uniform_sample_point, sample_pdf_point
 from PE import PE
 
 
@@ -46,6 +46,11 @@ def render_rays(net, rays, bound, N_samples, device, noise_std=.0, use_view=Fals
 
     # Run network
     rgb, weights = get_rgb_w(net, pts, rays_d, z_vals, device, noise_std=noise_std, use_view=use_view)
+
+    if important_N is not None:
+        with torch.no_grad:
+            z_vals_mid = .5 * (z_vals[..., 1:] + z_vals[..., :-1])
+            sample_pdf_point(z_vals_mid, weights[..., 1:-1], N_importance)
 
     rgb_map = torch.sum(weights[..., None] * rgb, dim=-2)
     depth_map = torch.sum(weights * z_vals, -1)

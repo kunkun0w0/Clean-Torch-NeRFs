@@ -62,7 +62,7 @@ iterations = N // Batch_size
 print(f"There are {iterations} batches of rays and each batch contains {Batch_size} rays")
 
 bound = (2., 6.)
-N_samples = (64, None)
+N_samples = (64, 128)
 use_view = True
 epoch = 2
 psnrs = []
