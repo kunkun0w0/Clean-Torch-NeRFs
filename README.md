@@ -26,3 +26,7 @@ In this repo, I have not used the `Hierarchical volume sampling` and coarse-to-f
 **3-views Lego result**
 
 <img src='/img/pixelnerf.gif' alt="sym" width="120px">
+
+**1-views Lego result**
+
+<img src='/img/pixelnerf1.gif' alt="sym" width="120px">
